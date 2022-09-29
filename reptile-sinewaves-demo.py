@@ -17,7 +17,9 @@ rng = np.random.RandomState(seed)
 torch.manual_seed(seed)
 
 # Define task distribution
-x_all = np.linspace(-5, 5, 50)[:,None] # All of the x points
+x_min = -5
+x_max = 5
+x_all = np.linspace(x_min, x_max, 50)[:,None] # All of the x points
 ntrain = 10 # Size of training minibatches
 
 # Define model. Reptile paper uses ReLU, but Tanh gives slightly better results
@@ -29,39 +31,45 @@ model = nn.Sequential(
     nn.Linear(64, 1),
 )
 
-def gen_task():
-    "Generate a random sine function"
+def gen_task(show):
+    "Generate a random `sine function` with random `phase` and random `amplitude`."
     phase = rng.uniform(low=0, high=2*np.pi)           # ф = [0,2π[
     ampl = rng.uniform(0.1, 5)                         # A = [0.1,5[
-    f_randomsine = lambda x : np.sin(x + phase) * ampl # A ⋅ sin(x + ф)
+    f_randomsine = lambda x : ampl * np.sin(x + phase) # A ⋅ sin(x + ф)
+    if show:
+        print(f"phase: {phase}")
+        print(f"amp: {ampl}")
     return f_randomsine
 
 def totorch(x):
+    """Returns `ag.Variable(torch.Tensor(x))`."""
     return ag.Variable(torch.Tensor(x))
 
 def train_on_batch(x, y):
     x = totorch(x)
     y = totorch(y)
-    model.zero_grad()
+    model.zero_grad() # Sets gradients of all model parameters to zero.
     ypred = model(x)
-    loss = (ypred - y).pow(2).mean()
+    loss = (ypred - y).pow(2).mean() # average of (yₚᵣₑ - y)²
     loss.backward()
-    for param in model.parameters():
+    for param in model.parameters(): # Iterator over module parameters.
         param.data -= innerStepSize * param.grad.data
 
 def predict(x):
+    """Returns `model(ag.Variable(torch.Tensor(x))).data.numpy()`."""
     x = totorch(x)
     return model(x).data.numpy()
 
 # Choose a fixed task and minibatch for visualization
-f_plot = gen_task()
-xtrain_plot: np.ndarray = x_all[rng.choice(len(x_all), size=ntrain)] # training points
+print("Sine fct to plot:")
+f_plot = gen_task(True)
+xtrain_plot = x_all[rng.choice(len(x_all), size=ntrain)] # training points
 
 # Reptile training loop
 for i in range(n):
     weights_before = deepcopy(model.state_dict())
     # Generate task
-    f = gen_task() # in each iteration: generate a random sine wave
+    f = gen_task(False) # in each iteration: generate a random sine wave
     y_all = f(x_all) # calculate values on the whole domain
     # Do SGD on this task
     inds = rng.permutation(len(x_all)) # randomly shuffled indeces i. e. [0,50[ --- for example {2 17 28 5 ... 25 38}
@@ -79,24 +87,24 @@ for i in range(n):
         for name in weights_before})
 
     # Periodically plot the results on a particular task and minibatch
-    #if plot and i==0 or (i+1) % 1000 == 0:
-    if plot and i==n-1:
+    if plot and i==0 or (i+1) % 1000 == 0:
+    #if plot and i==n-1:
         plt.cla()
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
-        plt.plot(x_all, predict(x_all), label="pred after 0", color=(0,0,1))
+        plt.plot(x_all, predict(x_all), label="pred after 0", color=(0,0,1)) #HACK: plot
         for inneriter in range(32):
             train_on_batch(xtrain_plot, f(xtrain_plot))
             if (inneriter+1) % 8 == 0:
                 frac = (inneriter+1) / 32
-                plt.plot(x_all, predict(x_all), label="pred after %i"%(inneriter+1), color=(frac, 0, 1-frac))
-        plt.plot(x_all, f(x_all), label="true", color=(0,1,0))
-        lossval = np.square(predict(x_all) - f(x_all)).mean()
-        plt.plot(xtrain_plot, f(xtrain_plot), "x", label="train", color="k")
+                plt.plot(x_all, predict(x_all), label="pred after %i"%(inneriter+1), color=(frac, 0, 1-frac)) #HACK: plot
+        plt.plot(x_all, f(x_all), label="true", color=(0,1,0)) #HACK: plot
+        lossval = np.square(predict(x_all) - f(x_all)).mean() # would be better to average loss over a set of examples, but this is optimized for brevity
+        plt.plot(xtrain_plot, f(xtrain_plot), "x", label="train", color="k") #HACK: plot
         plt.ylim(-4,4)
         plt.legend(loc="lower right")
         plt.pause(0.01)
         model.load_state_dict(weights_before) # restore from snapshot
         print(f"-----------------------------")
         print(f"iteration               {i+1}")
-        print(f"loss on plotted curve   {lossval:.3f}") # would be better to average loss over a set of examples, but this is optimized for brevity
+        print(f"loss on plotted curve   {lossval:.3f}")
