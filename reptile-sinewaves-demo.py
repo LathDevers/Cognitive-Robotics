@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 
 seed = 0
-plot = True
 innerStepSize = 0.02 # stepsize in inner SGD
 innerEpochs = 1 # number of epochs of each inner SGD
 outerStepSize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
@@ -39,14 +38,14 @@ def gen_task():
     return f_randomsine
 
 def totorch(x):
-    """Returns `ag.Variable(torch.Tensor(x))`."""
+    """Creates a `Variable` object from a `list` or `array`. `Variables` can be used to compute gradients with the `backward()` function."""
     return ag.Variable(torch.Tensor(x))
 
 def train_on_batch(x, y):
     """Computes loss between `y` and `model(x)`. Then calculates gradients and changes model parameters accordingly."""
     x = totorch(x)
     y = totorch(y)
-    model.zero_grad() # Sets gradients of all model parameters to zero.
+    model.zero_grad() # Sets gradients of all model parameters to zero. This is necessary before running the backward() function, as gradients are accumulated over multiple backward passes.
     # Get model prediction for x (should be: yₚᵣₑ = y = A⋅sin(x+𝛟))
     ypred = model(x)
     loss = (ypred - y).pow(2).mean() # average of (yₚᵣₑ - y)²
@@ -55,7 +54,7 @@ def train_on_batch(x, y):
         param.data -= innerStepSize * param.grad.data # `param.grad` attribute contains the gradients computed 
 
 def predict(x):
-    """Returns `model(ag.Variable(torch.Tensor(x))).data.numpy()`."""
+    """Runs the neural network on the input `x` and returns the output as a numpy array."""
     x = totorch(x)
     return model(x).data.numpy()
 
@@ -83,8 +82,8 @@ for i in range(n):
         weights_before[name] + (weights_after[name] - weights_before[name]) * outerStepSize 
         for name in weights_before})
     # Plot the results on a particular task and minibatch
-    #if plot and (i==0 or (i+1) % 10000 == 0 or i==n-1):
-    if plot and i==n-1:
+    #if (i==0 or (i+1) % 10000 == 0 or i==n-1):
+    if i==n-1:
         plt.cla()
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
