@@ -33,9 +33,9 @@ model = nn.Sequential(
 
 def gen_task():
     "Generate a random `sine function` with random `phase` and random `amplitude`."
-    phase = rng.uniform(low=0, high=2*np.pi)           # ф = [0,2π[
+    phase = rng.uniform(low=0, high=2*np.pi)           # 𝛟 = [0,2π[
     ampl = rng.uniform(0.1, 5)                         # A = [0.1,5[
-    f_randomsine = lambda x : ampl * np.sin(x + phase) # A ⋅ sin(x + ф)
+    f_randomsine = lambda x : ampl * np.sin(x + phase) # A ⋅ sin(x + 𝛟)
     return f_randomsine
 
 def totorch(x):
@@ -47,7 +47,7 @@ def train_on_batch(x, y):
     x = totorch(x)
     y = totorch(y)
     model.zero_grad() # Sets gradients of all model parameters to zero.
-    # Get model prediction for x (should be: yₚᵣₑ = y = A⋅sin(x+ф))
+    # Get model prediction for x (should be: yₚᵣₑ = y = A⋅sin(x+𝛟))
     ypred = model(x)
     loss = (ypred - y).pow(2).mean() # average of (yₚᵣₑ - y)²
     loss.backward() # compute gradients + future calls will accumulate gradients into `param.grad`
