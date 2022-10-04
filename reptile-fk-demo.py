@@ -1,8 +1,9 @@
-# Source: https://openai.com/blog/reptile/ & https://gist.github.com/joschu/f503500cda64f2ce87c8288906b09e2d#file-reptile-sinewaves-demo-py
-# consider the cases:
-    # (i)  of plain learning from a random weight initialization and
-    # (ii) learning after weight optimization according to the Reptile algorithm of the example implementation
-# visualize in each case the results before and after training and compare the outcomes of (i) and (ii) above
+# replace the sine function by the forward kinematics of a two-link robot arm:
+    # segment lengths A ∈ [1, 2] and B ∈ [0.5, 1] 
+    # joint angles x₁, x₂ ∈ [−π/2, π/2]
+    # end effector coordinates (y₁, y₂) (and no phase)
+# y₁ = A⋅cos(x₁) + B⋅cos(x₁ + x₂)
+# y₂ = A⋅sin(x₁) + B⋅sin(x₁ + x₂)
 import numpy as np
 import torch
 from torch import nn, autograd as ag
@@ -19,24 +20,33 @@ rng = np.random.RandomState(seed)
 torch.manual_seed(seed)
 
 # Define task distribution
-x_all = np.linspace(-5, 5, 50)[:,None] # All of the x points
+x_all = np.array([
+    np.linspace(-np.pi/2, np.pi/2, 50)[:,None],
+    np.linspace(-np.pi/2, np.pi/2, 50)[:,None]
+]) # joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
+y1_all = np.linspace(-1, 3, 40)[:,None] # required for plotting
+y2_all = np.linspace(-3, 3, 60)[:,None] # required for plotting
+error_plane = np.zeros((60,40))
 ntrain = 10 # Size of training minibatches
 
 # Define model. Reptile paper uses ReLU, but Tanh gives slightly better results
 model = nn.Sequential(
-    nn.Linear(1, 64),
+    nn.Linear(2, 64),
     nn.Tanh(),
     nn.Linear(64, 64),
     nn.Tanh(),
-    nn.Linear(64, 1),
+    nn.Linear(64, 2),
 )
 
 def gen_task():
-    "Generate a random `sine function` with random `phase` and random `amplitude`."
-    phase = rng.uniform(low=0, high=2*np.pi)           # 𝛟 ∈ [0,2π[
-    ampl = rng.uniform(0.1, 5)                         # A ∈ [0.1,5[
-    f_randomsine = lambda x : ampl * np.sin(x + phase) # A ⋅ sin(x + 𝛟)
-    return f_randomsine
+    "Generate a random forward kinematics problem of a two-link robot arm."
+    A = rng.uniform(1, 2)                   # segment A ∈ [1, 2]
+    B = rng.uniform(0.5, 1)                 # segment B ∈ [0.5, 1]
+    f = lambda x: np.array([
+            A * np.cos(x[0]) + B * np.cos(x[0] + x[1]), # y₁ = A⋅cos(x₁) + B⋅cos(x₁ + x₂)
+            A * np.sin(x[0]) + B * np.sin(x[0] + x[1]), # y₂ = A⋅sin(x₁) + B⋅sin(x₁ + x₂)
+    ])
+    return f
 
 def totorch(x):
     """Creates a `Variable` object from a `list` or `array`. `Variables` can be used to compute gradients with the `backward()` function."""
@@ -47,9 +57,9 @@ def train_on_batch(x, y):
     x = totorch(x)
     y = totorch(y)
     model.zero_grad() # Sets gradients of all model parameters to zero. This is necessary before running the backward() function, as gradients are accumulated over multiple backward passes.
-    # Get model prediction for x (should be: yₚᵣₑ = y = A⋅sin(x+𝛟))
-    ypred = model(x)
-    loss = (ypred - y).pow(2).mean() # mean squared error
+    y_pred = model(x)
+    N = y_pred.shape[0]
+    loss = -((y - y_pred) / (abs(y - y_pred) + 10**-100)) / N
     loss.backward() # compute gradients + future calls will accumulate gradients into `param.grad`
     for param in model.parameters(): # Iterator over module parameters.
         param.data -= innerStepSize * param.grad.data # `param.grad` attribute contains the gradients computed 
@@ -59,26 +69,39 @@ def predict(x):
     x = totorch(x)
     return model(x).data.numpy()
 
+def insert_into_error_plane(y, loss):
+    error_plane[y[0]+abs(y1_all[0]), y[1]+abs(y2_all[0])] = loss
+
+def conv(x1, x2):
+    return np.array([x1, x2])
+
 # Choose a fixed task and minibatch for visualization
 f_plot = gen_task()
-xtrain_plot = x_all[rng.choice(len(x_all), size=ntrain)] # training points
+y = f_plot(x_all)
+x_train_plot = np.array([
+    x_all[0,rng.choice(x_all.shape[1], size=ntrain)],
+    x_all[1,rng.choice(x_all.shape[1], size=ntrain)]
+]) # training points
 
 # Reptile training loop
 for i in range(n):
     weights_before = deepcopy(model.state_dict())
     # Generate task
-    f = gen_task() # in each iteration: generate a random sine wave
-    y_all = f(x_all) # calculate values on the whole domain
+    f = gen_task()
+    # calculate values on the whole domain
+    y_all = f(x_all)
     # Do SGD on this task
-    inds = rng.permutation(len(x_all)) # randomly shuffled indeces i. e. [0,50[ --- for example {2 17 28 5 ... 25 38}
+    inds1 = rng.permutation(x_all.shape[1]) # shuffled indeces
+    inds2 = rng.permutation(x_all.shape[1])
     for _ in range(innerEpochs):
-        for start in range(0, len(x_all), ntrain): # (start, stop, step) --- (0, 50, 10) --> {0 10 20 30 40}
-            mbinds = inds[start:start+ntrain] # minibatch indeces
-            train_on_batch(x_all[mbinds], y_all[mbinds]) # train on 10 set of x and y pairs
+        for start in range(0, x_all.shape[1], ntrain):
+            mbinds1 = inds1[start : start+ntrain] # minibatch indeces
+            mbinds2 = inds2[start : start+ntrain]
+            train_on_batch(conv(x_all[0,mbinds1], x_all[1,mbinds2]), conv(y_all[0,mbinds1], y_all[1,mbinds2]))
     # Interpolate between current weights (weights_before) and trained weights (weights_after) from this task
     # I.e. (weights_before - weights_after) is the meta-gradient
     weights_after = model.state_dict()
-    outerStepSize = outerStepSize0 * (1 - i / n) # linear schedule, i.e. (1 - i/n) is ~1 if i=0, and ~0 if i=n
+    outerStepSize = outerStepSize0 * (1 - i / n) # linear schedule
     model.load_state_dict({name : 
         weights_before[name] + (weights_after[name] - weights_before[name]) * outerStepSize
         for name in weights_before})
@@ -88,17 +111,13 @@ for i in range(n):
         plt.cla()
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
-        plt.plot(x_all, predict(x_all), label="pred after 0", color=(0,0,1))
         for j in range(32):
-            train_on_batch(xtrain_plot, f(xtrain_plot))
-            if (j + 1) % 8 == 0:
-                frac = (j + 1) / 32
-                plt.plot(x_all, predict(x_all), label="pred after %i"%(j + 1), color=(frac, 0, 1 - frac))
-        plt.plot(x_all, f(x_all), label="true", color=(0,1,0))
-        lossval = np.square(predict(x_all) - f(x_all)).mean() # would be better to average loss over a set of examples, but this is optimized for brevity
-        plt.plot(xtrain_plot, f(xtrain_plot), "x", label="train", color="k")
-        plt.ylim(-4,4)
-        plt.legend(loc="lower right")
+            train_on_batch(x_train_plot, f(x_train_plot))
+        for x1 in x_all[0]:
+            for x2 in x_all[1]:
+                insert_into_error_plane(f(conv(x1,x2)),np.square(predict(conv(x1,x2)) - f(conv(x1,x2))))
+        plt.pcolor(y1_all, y2_all, error_plane)
+        #plt.ylim(-4,4)
         plt.pause(0.01)
         model.load_state_dict(weights_before) # restore from snapshot
         print(f"-----------------------------")
