@@ -1,9 +1,4 @@
-# replace the sine function by the forward kinematics of a two-link robot arm:
-    # segment lengths A ∈ [1, 2] and B ∈ [0.5, 1] 
-    # joint angles x₁, x₂ ∈ [−π/2, π/2]
-    # end effector coordinates (y₁, y₂) (and no phase)
-# y₁ = A⋅cos(x₁) + B⋅cos(x₁ + x₂)
-# y₂ = A⋅sin(x₁) + B⋅sin(x₁ + x₂)
+# replace the sine function by the forward kinematics of a two-link robot arm
 import numpy as np
 import torch
 from torch import nn, autograd as ag
@@ -16,10 +11,10 @@ innerEpochs = 1
 outerStepSize0 = 0.1
 n = 30000
 
-rng = np.random.RandomState(seed)
-torch.manual_seed(seed)
+rng = np.random.RandomState()
+#torch.manual_seed(seed)
 
-cell_size = 40 # 10
+cell_size = 10 # 40
 # joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
 x_all = np.array([
     np.linspace(-np.pi/2, np.pi/2, cell_size*5)[:,None],
@@ -90,17 +85,19 @@ def update_error_plane():
             for x2 in x_all[1]:
                 y_true = f(conv(x1,x2))
                 y_pred = predict(conv(x1,x2).reshape(2))
-                i = int((y_true[0]+abs(y1_all[0]))*cell_size)
-                j = int((y_true[1]+abs(y2_all[0]))*cell_size)
                 error = np.sqrt(np.square(y_pred[0] - y_true[0]) + np.square(y_pred[1] - y_true[1]))
-                error_plane[j,i] = error
+                put_into_plane(y_true[0], y_true[1], error)
+
+def put_into_plane(y1, y2, value):
+    i = int((y1+abs(y1_all[0]))*cell_size)
+    j = int((y2+abs(y2_all[0]))*cell_size)
+    error_plane[j,i] = value
 
 def conv(x1, x2):
     return np.array([x1, x2])
 
 # Choose a fixed task and minibatch for visualization
 f_plot = gen_task()
-y = f_plot(x_all)
 x_train_plot = np.array([
     x_all[0,rng.choice(x_all.shape[1], size=ntrain)],
     x_all[1,rng.choice(x_all.shape[1], size=ntrain)]
@@ -145,9 +142,7 @@ for i in range(n):
                 update_error_plane()
                 print(f"pred after {j + 1} : {np.average(error_plane, weights=(error_plane >= 0))}")
                 plt.pcolor(y1_all, y2_all, error_plane)
-                plt.pause(0.01)
-        update_error_plane()
-        plt.pcolor(y1_all, y2_all, error_plane)
+        plt.plot(f(x_train_plot)[0], f(x_train_plot)[1], "x", label="train", color="k")
         if i != n-1:
             plt.pause(0.01)
         else:

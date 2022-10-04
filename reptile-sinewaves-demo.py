@@ -16,7 +16,7 @@ outerStepSize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
 n = 30000 # number of outer updates; each iteration we sample one task and update on it
 useReptile = True
 
-rng = np.random.RandomState(seed)
+rng = np.random.RandomState()
 torch.manual_seed(seed)
 
 # Define task distribution
@@ -49,7 +49,6 @@ def train_on_batch(x, y):
     y = totorch(y)
     model.zero_grad() # Sets gradients of all model parameters to zero. This is necessary before running the backward() function, as gradients are accumulated over multiple backward passes.
     # Get model prediction for x (should be: yₚᵣₑ = y = A⋅sin(x+𝛟))
-    print(f"x.shape: {x.shape}")
     ypred = model(x)
     loss = (ypred - y).pow(2).mean() # mean squared error
     loss.backward() # compute gradients + future calls will accumulate gradients into `param.grad`
@@ -86,8 +85,8 @@ for i in range(n):
             weights_before[name] + (weights_after[name] - weights_before[name]) * outerStepSize
             for name in weights_before})
     # Plot the results on a particular task and minibatch
-    #if (i==0 or (i+1) % 10000 == 0 or i==n-1):
-    if i==n-1:
+    if (i==0 or (i+1) % 10000 == 0 or i==n-1):
+    #if i==n-1:
         plt.cla()
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
@@ -102,7 +101,10 @@ for i in range(n):
         plt.plot(xtrain_plot, f(xtrain_plot), "x", label="train", color="k")
         plt.ylim(-4,4)
         plt.legend(loc="lower right")
-        plt.pause(0.01)
+        if i != n-1:
+            plt.pause(0.01)
+        else:
+            plt.pause(5)
         model.load_state_dict(weights_before) # restore from snapshot
         print(f"-----------------------------")
         print(f"iteration               {i+1}")
