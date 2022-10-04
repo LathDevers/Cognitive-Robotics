@@ -25,7 +25,9 @@ x_all = np.array([
     np.linspace(-np.pi/2, np.pi/2, 50)[:,None]
 ]) # joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
 y1_all = np.linspace(-1, 3, 40)[:,None] # required for plotting
+y1_all = y1_all.reshape(y1_all.shape[0])
 y2_all = np.linspace(-3, 3, 60)[:,None] # required for plotting
+y2_all = y2_all.reshape(y2_all.shape[0])
 error_plane = np.zeros((60,40))
 ntrain = 10 # Size of training minibatches
 
@@ -54,13 +56,19 @@ def totorch(x):
 
 def train_on_batch(x, y):
     """Computes loss between `y` and `model(x)`. Then calculates gradients and changes model parameters accordingly."""
+    x = np.transpose(x)
+    y = np.transpose(y)
     x = totorch(x)
     y = totorch(y)
     model.zero_grad() # Sets gradients of all model parameters to zero. This is necessary before running the backward() function, as gradients are accumulated over multiple backward passes.
     y_pred = model(x)
-    N = y_pred.shape[0]
-    loss = -((y - y_pred) / (abs(y - y_pred) + 10**-100)) / N
-    loss.backward() # compute gradients + future calls will accumulate gradients into `param.grad`
+    #
+    #loss = torch.sqrt((y - y_pred)**2).sum() # for some reason causes NaN output for model
+    #loss.backward()
+    #
+    loss = torch.cdist(y,y_pred)
+    loss.sum().backward()
+    #
     for param in model.parameters(): # Iterator over module parameters.
         param.data -= innerStepSize * param.grad.data # `param.grad` attribute contains the gradients computed 
 
@@ -69,8 +77,15 @@ def predict(x):
     x = totorch(x)
     return model(x).data.numpy()
 
-def insert_into_error_plane(y, loss):
-    error_plane[y[0]+abs(y1_all[0]), y[1]+abs(y2_all[0])] = loss
+def update_error_plane():
+    for x1 in x_all[0]:
+            for x2 in x_all[1]:
+                y_true = f(conv(x1,x2))
+                y_pred = predict(conv(x1,x2).reshape(2))
+                i = int((y_true[0]+abs(y1_all[0]))*10)
+                j = int((y_true[1]+abs(y2_all[0]))*10)
+                error = np.sqrt(np.square(y_pred[0] - y_true[0]) + np.square(y_pred[1] - y_true[1]))
+                error_plane[j,i] = error
 
 def conv(x1, x2):
     return np.array([x1, x2])
@@ -106,20 +121,23 @@ for i in range(n):
         weights_before[name] + (weights_after[name] - weights_before[name]) * outerStepSize
         for name in weights_before})
     # Plot the results on a particular task and minibatch
-    #if (i==0 or (i+1) % 10000 == 0 or i==n-1):
-    if i==n-1:
+    if (i==0 or (i+1) % 10000 == 0 or i==n-1):
+    #if i==n-1:
         plt.cla()
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
+        plt.pcolor(y1_all, y2_all, error_plane)
+        plt.pause(0.01)
         for j in range(32):
             train_on_batch(x_train_plot, f(x_train_plot))
-        for x1 in x_all[0]:
-            for x2 in x_all[1]:
-                insert_into_error_plane(f(conv(x1,x2)),np.square(predict(conv(x1,x2)) - f(conv(x1,x2))))
+            if (j + 1) % 8 == 0:
+                frac = (j + 1) / 32
+                update_error_plane()
+                print(f"pred after {j + 1} : {error_plane.mean()}")
+        update_error_plane()
         plt.pcolor(y1_all, y2_all, error_plane)
-        #plt.ylim(-4,4)
-        plt.pause(0.01)
+        if i != n-1:
+            plt.pause(0.01)
+        else:
+            plt.pause(5)
         model.load_state_dict(weights_before) # restore from snapshot
-        print(f"-----------------------------")
-        print(f"iteration               {i+1}")
-        print(f"loss on plotted curve   {lossval:.3f}")
