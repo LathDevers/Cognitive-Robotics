@@ -1,5 +1,4 @@
-# Source: https://openai.com/blog/reptile/
-# Source: https://gist.github.com/joschu/f503500cda64f2ce87c8288906b09e2d#file-reptile-sinewaves-demo-py
+# Source: https://openai.com/blog/reptile/ & https://gist.github.com/joschu/f503500cda64f2ce87c8288906b09e2d#file-reptile-sinewaves-demo-py
 import numpy as np
 import torch
 from torch import nn, autograd as ag
