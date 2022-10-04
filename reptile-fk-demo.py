@@ -11,24 +11,32 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 
 seed = 0
-innerStepSize = 0.02 # stepsize in inner SGD
-innerEpochs = 1 # number of epochs of each inner SGD
-outerStepSize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
-n = 30000 # number of outer updates; each iteration we sample one task and update on it
+innerStepSize = 0.02
+innerEpochs = 1
+outerStepSize0 = 0.1
+n = 30000
 
 rng = np.random.RandomState(seed)
 torch.manual_seed(seed)
 
-# Define task distribution
+cell_size = 40 # 10
+# joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
 x_all = np.array([
-    np.linspace(-np.pi/2, np.pi/2, 50)[:,None],
-    np.linspace(-np.pi/2, np.pi/2, 50)[:,None]
-]) # joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
-y1_all = np.linspace(-1, 3, 40)[:,None] # required for plotting
-y1_all = y1_all.reshape(y1_all.shape[0])
-y2_all = np.linspace(-3, 3, 60)[:,None] # required for plotting
-y2_all = y2_all.reshape(y2_all.shape[0])
-error_plane = np.zeros((60,40))
+    np.linspace(-np.pi/2, np.pi/2, cell_size*5)[:,None],
+    np.linspace(-np.pi/2, np.pi/2, cell_size*5)[:,None]
+])
+#
+y1_min = -1
+y1_max = 3
+y2_min = -3
+y2_max = 3
+y1_all_size = (y1_max-y1_min)*cell_size
+y2_all_size = (y2_max-y2_min)*cell_size
+#
+y1_all = np.linspace(y1_min, y1_max, y1_all_size)
+y2_all = np.linspace(y2_min, y2_max, y2_all_size)
+error_plane = np.zeros((y2_all_size,y1_all_size)) - .1
+#
 ntrain = 10 # Size of training minibatches
 
 # Define model. Reptile paper uses ReLU, but Tanh gives slightly better results
@@ -82,8 +90,8 @@ def update_error_plane():
             for x2 in x_all[1]:
                 y_true = f(conv(x1,x2))
                 y_pred = predict(conv(x1,x2).reshape(2))
-                i = int((y_true[0]+abs(y1_all[0]))*10)
-                j = int((y_true[1]+abs(y2_all[0]))*10)
+                i = int((y_true[0]+abs(y1_all[0]))*cell_size)
+                j = int((y_true[1]+abs(y2_all[0]))*cell_size)
                 error = np.sqrt(np.square(y_pred[0] - y_true[0]) + np.square(y_pred[1] - y_true[1]))
                 error_plane[j,i] = error
 
@@ -123,7 +131,9 @@ for i in range(n):
     # Plot the results on a particular task and minibatch
     if (i==0 or (i+1) % 10000 == 0 or i==n-1):
     #if i==n-1:
+        print(f"-------------------------")
         plt.cla()
+        plt.gca().set_aspect('equal')
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
         plt.pcolor(y1_all, y2_all, error_plane)
@@ -133,7 +143,9 @@ for i in range(n):
             if (j + 1) % 8 == 0:
                 frac = (j + 1) / 32
                 update_error_plane()
-                print(f"pred after {j + 1} : {error_plane.mean()}")
+                print(f"pred after {j + 1} : {np.average(error_plane, weights=(error_plane >= 0))}")
+                plt.pcolor(y1_all, y2_all, error_plane)
+                plt.pause(0.01)
         update_error_plane()
         plt.pcolor(y1_all, y2_all, error_plane)
         if i != n-1:
