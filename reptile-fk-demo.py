@@ -11,7 +11,7 @@ innerEpochs = 1
 outerStepSize0 = 0.1
 n = 30000
 
-rng = np.random.RandomState()
+rng = np.random.RandomState() #seed)
 #torch.manual_seed(seed)
 
 cell_size = 10 # 40
@@ -66,11 +66,11 @@ def train_on_batch(x, y):
     model.zero_grad() # Sets gradients of all model parameters to zero. This is necessary before running the backward() function, as gradients are accumulated over multiple backward passes.
     y_pred = model(x)
     #
-    #loss = torch.sqrt((y - y_pred)**2).sum() # for some reason causes NaN output for model
-    #loss.backward()
+    loss = torch.sqrt(((y - y_pred)**2).sum()) # √(Σ(y-yₚ)²)
+    loss.backward()
     #
-    loss = torch.cdist(y,y_pred)
-    loss.sum().backward()
+    #loss = torch.cdist(y,y_pred)
+    #loss.sum().backward()
     #
     for param in model.parameters(): # Iterator over module parameters.
         param.data -= innerStepSize * param.grad.data # `param.grad` attribute contains the gradients computed 
@@ -82,11 +82,11 @@ def predict(x):
 
 def update_error_plane():
     for x1 in x_all[0]:
-            for x2 in x_all[1]:
-                y_true = f(conv(x1,x2))
-                y_pred = predict(conv(x1,x2).reshape(2))
-                error = np.sqrt(np.square(y_pred[0] - y_true[0]) + np.square(y_pred[1] - y_true[1]))
-                put_into_plane(y_true[0], y_true[1], error)
+        for x2 in x_all[1]:
+            y_true = f(conv(x1,x2))
+            y_pred = predict(conv(x1,x2).reshape(2))
+            error = np.sqrt(np.square(y_pred[0] - y_true[0]) + np.square(y_pred[1] - y_true[1]))
+            put_into_plane(y_true[0], y_true[1], error)
 
 def put_into_plane(y1, y2, value):
     i = int((y1+abs(y1_all[0]))*cell_size)
