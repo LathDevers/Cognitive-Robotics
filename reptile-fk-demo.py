@@ -14,19 +14,19 @@ n = 30000
 rng = np.random.RandomState() #seed)
 #torch.manual_seed(seed)
 
-cell_size = 10 # 40
+no_of_cells = 10 # 40
 # joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
 x_all = np.array([
-    np.linspace(-np.pi/2, np.pi/2, cell_size*5)[:,None],
-    np.linspace(-np.pi/2, np.pi/2, cell_size*5)[:,None]
+    np.linspace(-np.pi/2, np.pi/2, no_of_cells*5)[:,None],
+    np.linspace(-np.pi/2, np.pi/2, no_of_cells*5)[:,None]
 ])
 #
 y1_min = -1
 y1_max = 3
 y2_min = -3
 y2_max = 3
-y1_all_size = (y1_max-y1_min)*cell_size
-y2_all_size = (y2_max-y2_min)*cell_size
+y1_all_size = (y1_max-y1_min)*no_of_cells
+y2_all_size = (y2_max-y2_min)*no_of_cells
 #
 y1_all = np.linspace(y1_min, y1_max, y1_all_size)
 y2_all = np.linspace(y2_min, y2_max, y2_all_size)
@@ -65,6 +65,8 @@ def train_on_batch(x, y):
     y = totorch(y)
     model.zero_grad() # Sets gradients of all model parameters to zero. This is necessary before running the backward() function, as gradients are accumulated over multiple backward passes.
     y_pred = model(x)
+    #print(f"y_pred shape {y_pred.shape}")
+    #print(f"y_true shape {y.shape}")
     #
     loss = torch.sqrt(((y - y_pred)**2).sum()) # √(Σ(y-yₚ)²)
     loss.backward()
@@ -89,8 +91,8 @@ def update_error_plane():
             put_into_plane(y_true[0], y_true[1], error)
 
 def put_into_plane(y1, y2, value):
-    i = int((y1+abs(y1_all[0]))*cell_size)
-    j = int((y2+abs(y2_all[0]))*cell_size)
+    i = int((y1+abs(y1_all[0]))*no_of_cells)
+    j = int((y2+abs(y2_all[0]))*no_of_cells)
     error_plane[j,i] = value
 
 def conv(x1, x2):
