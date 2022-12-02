@@ -69,10 +69,11 @@ def train_on_batch(x, y):
     #print(f"y_true shape {y.shape}")
     #
     loss = torch.sqrt(((y - y_pred)**2).sum()) # √(Σ(y-yₚ)²)
+    #loss = ((y - y_pred)**2).sum() # Σ(y-yₚ)²
     loss.backward()
     #
-    #loss = torch.cdist(y,y_pred)
-    #loss.sum().backward()
+    #loss = torch.cdist(y,y_pred).sum()
+    #loss.backward()
     #
     for param in model.parameters(): # Iterator over module parameters.
         param.data -= innerStepSize * param.grad.data # `param.grad` attribute contains the gradients computed 
@@ -87,7 +88,7 @@ def update_error_plane():
         for x2 in x_all[1]:
             y_true = f(conv(x1,x2))
             y_pred = predict(conv(x1,x2).reshape(2))
-            error = np.sqrt(np.square(y_pred[0] - y_true[0]) + np.square(y_pred[1] - y_true[1]))
+            error = np.sqrt((np.square(y_pred - y_true)).sum())
             put_into_plane(y_true[0], y_true[1], error)
 
 def put_into_plane(y1, y2, value):
@@ -124,7 +125,7 @@ for i in range(n):
     # I.e. (weights_before - weights_after) is the meta-gradient
     weights_after = model.state_dict()
     outerStepSize = outerStepSize0 * (1 - i / n) # linear schedule
-    model.load_state_dict({name : 
+    model.load_state_dict({name :
         weights_before[name] + (weights_after[name] - weights_before[name]) * outerStepSize
         for name in weights_before})
     # Plot the results on a particular task and minibatch
