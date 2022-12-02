@@ -146,6 +146,8 @@ for i in range(n):
                 print(f"pred after {j + 1} : {np.average(error_plane, weights=(error_plane >= 0))}")
                 plt.pcolor(y1_all, y2_all, error_plane)
         plt.plot(f(x_train_plot)[0], f(x_train_plot)[1], "x", label="train", color="k")
+        plt.xlabel("y₁ [m]")
+        plt.ylabel("y₂ [m]")
         if i != n-1:
             plt.pause(0.01)
         else:
