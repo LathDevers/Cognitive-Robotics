@@ -7,7 +7,7 @@ from copy import deepcopy
 
 seed = 0
 innerStepSize = 0.02
-innerEpochs = 1
+innerEpochs = 64
 outerStepSize0 = 0.1
 n = 30000
 
@@ -32,14 +32,16 @@ y1_all = np.linspace(y1_min, y1_max, y1_all_size)
 y2_all = np.linspace(y2_min, y2_max, y2_all_size)
 error_plane = np.zeros((y2_all_size,y1_all_size)) - .1
 #
-ntrain = 10 # Size of training minibatches
+ntrain = 100 # Size of training minibatches
 
 # Define model. Reptile paper uses ReLU, but Tanh gives slightly better results
 model = nn.Sequential(
     nn.Linear(2, 64),
     nn.Tanh(),
-    nn.Linear(64, 64),
+    nn.Linear(64, 128),
     nn.Tanh(),
+    nn.Linear(128, 64),
+    nn.ReLU(),
     nn.Linear(64, 2),
 )
 
@@ -65,11 +67,10 @@ def train_on_batch(x, y):
     y = totorch(y)
     model.zero_grad() # Sets gradients of all model parameters to zero. This is necessary before running the backward() function, as gradients are accumulated over multiple backward passes.
     y_pred = model(x)
-    #print(f"y_pred shape {y_pred.shape}")
-    #print(f"y_true shape {y.shape}")
     #
-    loss = torch.sqrt(((y - y_pred)**2).sum()) # √(Σ(y-yₚ)²)
+    #loss = torch.sqrt(((y - y_pred)**2).sum()) # √(Σ(y-yₚ)²)
     #loss = ((y - y_pred)**2).sum() # Σ(y-yₚ)²
+    loss = (y_pred - y).pow(2).mean()
     loss.backward()
     #
     #loss = torch.cdist(y,y_pred).sum()
@@ -88,7 +89,7 @@ def update_error_plane():
         for x2 in x_all[1]:
             y_true = f(conv(x1,x2))
             y_pred = predict(conv(x1,x2).reshape(2))
-            error = np.sqrt((np.square(y_pred - y_true)).sum())
+            error = np.sqrt(np.square(y_pred[0] - y_true[0]) + np.square(y_pred[1] - y_true[1]))
             put_into_plane(y_true[0], y_true[1], error)
 
 def put_into_plane(y1, y2, value):
@@ -133,21 +134,24 @@ for i in range(n):
     #if i==n-1:
         print(f"-------------------------")
         plt.cla()
+        plt.close()
         plt.gca().set_aspect('equal')
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
         plt.pcolor(y1_all, y2_all, error_plane)
         plt.pause(0.01)
-        for j in range(32):
+        for j in range(64):
             train_on_batch(x_train_plot, f(x_train_plot))
             if (j + 1) % 8 == 0:
-                frac = (j + 1) / 32
+                frac = (j + 1) / 64
                 update_error_plane()
                 print(f"pred after {j + 1} : {np.average(error_plane, weights=(error_plane >= 0))}")
                 plt.pcolor(y1_all, y2_all, error_plane)
         plt.plot(f(x_train_plot)[0], f(x_train_plot)[1], "x", label="train", color="k")
+        plt.colorbar()
         plt.xlabel("y₁ [m]")
         plt.ylabel("y₂ [m]")
+        #plt.legend("")
         if i != n-1:
             plt.pause(0.01)
         else:
