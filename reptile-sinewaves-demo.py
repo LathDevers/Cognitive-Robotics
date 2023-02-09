@@ -11,7 +11,7 @@ from copy import deepcopy
 
 seed = 0
 innerStepSize = 0.02 # stepsize in inner SGD
-innerEpochs = 1 # number of epochs of each inner SGD
+innerEpochs = 32 # number of epochs of each inner SGD
 outerStepSize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
 n = 30000 # number of outer updates; each iteration we sample one task and update on it
 useReptile = True
@@ -36,7 +36,7 @@ def gen_task():
     "Generate a random `sine function` with random `phase` and random `amplitude`."
     phase = rng.uniform(low=0, high=2*np.pi)           # 𝛟 ∈ [0,2π[
     ampl = rng.uniform(0.1, 5)                         # A ∈ [0.1,5[
-    f_randomsine = lambda x : ampl * np.sin(x + phase) # A ⋅ sin(x + 𝛟)
+    f_randomsine = lambda x : ampl * np.sin(x + phase) # A⋅sin(x + 𝛟)
     return f_randomsine
 
 def totorch(x):
@@ -100,10 +100,10 @@ for i in range(n):
         plt.plot(xtrain_plot, f(xtrain_plot), "x", label="train", color="k")
         plt.ylim(-4,4)
         plt.legend(loc="lower right")
-        if i != n-1:
-            plt.pause(0.01)
-        else:
-            plt.pause(5)
+        #if i != n-1:
+        #    plt.pause(0.01)
+        #else:
+        #    plt.pause(5)
         model.load_state_dict(weights_before) # restore from snapshot
         print(f"-----------------------------")
         print(f"iteration               {i+1}")
