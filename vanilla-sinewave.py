@@ -6,14 +6,11 @@ import numpy as np
 import torch
 from torch import nn, autograd as ag
 import matplotlib.pyplot as plt
-from copy import deepcopy
 
 seed = 0
 innerStepSize = 0.02 # stepsize in inner SGD
-innerEpochs = 32 # number of epochs of each inner SGD
+sgdEpochs = 32 # number of epochs of each inner SGD
 outerStepSize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
-n = 30000 # number of outer updates; each iteration we sample one task and update on it
-useReptile = True
 
 rng = np.random.RandomState()
 torch.manual_seed(seed)
@@ -80,10 +77,11 @@ xtrain_plot = x_all[rng.choice(len(x_all), size=ntrain)] # training points
 
 plt.cla()
 plt.plot(x_all, predict(x_all), label="pred after 0", color=(0,0,1))
-for j in range(32):
+
+for j in range(sgdEpochs):
     train_on_batch(xtrain_plot, f(xtrain_plot))
-    if (j + 1) % 8 == 0:
-        frac = (j + 1) / 32
+    if (j + 1) % (sgdEpochs/4) == 0:
+        frac = (j + 1) / sgdEpochs
         plt.plot(x_all, predict(x_all), label="pred after %i"%(j + 1), color=(frac, 0, 1 - frac))
 plt.plot(x_all, f(x_all), label="true", color=(0,1,0))
 plt.plot(xtrain_plot, f(xtrain_plot), "x", label="train", color="k")

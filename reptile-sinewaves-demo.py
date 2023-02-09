@@ -14,7 +14,6 @@ innerStepSize = 0.02 # stepsize in inner SGD
 innerEpochs = 32 # number of epochs of each inner SGD
 outerStepSize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
 n = 30000 # number of outer updates; each iteration we sample one task and update on it
-useReptile = True
 
 rng = np.random.RandomState()
 torch.manual_seed(seed)
