@@ -11,7 +11,7 @@ from copy import deepcopy
 
 seed = 0
 innerStepSize = 0.02 # stepsize in inner SGD
-innerEpochs = 32 # number of epochs of each inner SGD
+innerEpochs = 64 # number of epochs of each inner SGD
 outerStepSize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
 n = 30000 # number of outer updates; each iteration we sample one task and update on it
 
@@ -89,20 +89,22 @@ for i in range(n):
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
         plt.plot(x_all, predict(x_all), label="pred after 0", color=(0,0,1))
-        for j in range(32):
+        for j in range(innerEpochs):
             train_on_batch(xtrain_plot, f(xtrain_plot))
-            if (j + 1) % 8 == 0:
-                frac = (j + 1) / 32
-                plt.plot(x_all, predict(x_all), label="pred after %i"%(j + 1), color=(frac, 0, 1 - frac))
+            if j == innerEpochs-1:
+                plt.plot(x_all, predict(x_all), label="pred after %i"%(j + 1), color=(1, 0, 0))
+            #if (j + 1) % (innerEpochs/4) == 0:
+            #    frac = (j + 1) / innerEpochs
+            #    plt.plot(x_all, predict(x_all), label="pred after %i"%(j + 1), color=(frac, 0, 1 - frac))
         plt.plot(x_all, f(x_all), label="true", color=(0,1,0))
         lossval = np.square(predict(x_all) - f(x_all)).mean() # would be better to average loss over a set of examples, but this is optimized for brevity
         plt.plot(xtrain_plot, f(xtrain_plot), "x", label="train", color="k")
         plt.ylim(-4,4)
         plt.legend(loc="lower right")
-        #if i != n-1:
-        #    plt.pause(0.01)
-        #else:
-        #    plt.pause(5)
+        if i != n-1:
+            plt.pause(0.01)
+        else:
+            plt.pause(5)
         model.load_state_dict(weights_before) # restore from snapshot
         print(f"-----------------------------")
         print(f"iteration               {i+1}")
