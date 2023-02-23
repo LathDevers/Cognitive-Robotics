@@ -7,14 +7,14 @@ from copy import deepcopy
 
 seed = 0
 innerStepSize = 0.02
-innerEpochs = 64
+innerEpochs = 32 # 64
 outerStepSize0 = 0.1
 n = 30000
 
 rng = np.random.RandomState() #seed)
 #torch.manual_seed(seed)
 
-no_of_cells = 10 # 40
+no_of_cells = 10 # 10
 # joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
 x_all = np.array([
     np.linspace(-np.pi/2, np.pi/2, no_of_cells*5)[:,None],
@@ -45,10 +45,12 @@ model = nn.Sequential(
     nn.Linear(64, 2),
 )
 
-def gen_task():
+def gen_task(show = False):
     "Generate a random forward kinematics problem of a two-link robot arm."
     A = rng.uniform(1, 2)                   # segment A ∈ [1, 2]
     B = rng.uniform(0.5, 1)                 # segment B ∈ [0.5, 1]
+    if show:
+        print(A,B)
     f = lambda x: np.array([
             A * np.cos(x[0]) + B * np.cos(x[0] + x[1]), # y₁ = A⋅cos(x₁) + B⋅cos(x₁ + x₂)
             A * np.sin(x[0]) + B * np.sin(x[0] + x[1]), # y₂ = A⋅sin(x₁) + B⋅sin(x₁ + x₂)
@@ -101,7 +103,7 @@ def conv(x1, x2):
     return np.array([x1, x2])
 
 # Choose a fixed task and minibatch for visualization
-f_plot = gen_task()
+f_plot = gen_task(True)
 x_train_plot = np.array([
     x_all[0,rng.choice(x_all.shape[1], size=ntrain)],
     x_all[1,rng.choice(x_all.shape[1], size=ntrain)]
@@ -135,25 +137,28 @@ for i in range(n):
         print(f"-------------------------")
         plt.cla()
         plt.close()
-        plt.gca().set_aspect('equal')
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        ax1.set_aspect('equal')
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
-        plt.pcolor(y1_all, y2_all, error_plane)
+        ax1.pcolor(y1_all, y2_all, error_plane)
         plt.pause(0.01)
-        for j in range(64):
+        for j in range(innerEpochs):
             train_on_batch(x_train_plot, f(x_train_plot))
             if (j + 1) % 8 == 0:
-                frac = (j + 1) / 64
+                frac = (j + 1) / innerEpochs
                 update_error_plane()
                 print(f"pred after {j + 1} : {np.average(error_plane, weights=(error_plane >= 0))}")
-                plt.pcolor(y1_all, y2_all, error_plane)
-        plt.plot(f(x_train_plot)[0], f(x_train_plot)[1], "x", label="train", color="k")
-        plt.colorbar()
-        plt.xlabel("y₁ [m]")
-        plt.ylabel("y₂ [m]")
+                im = ax1.pcolor(y1_all, y2_all, error_plane)
+        ax1.plot(f(x_train_plot)[0], f(x_train_plot)[1], "x", label="train", color="k")
+        fig.colorbar(im, ax=ax1, location='bottom')
+        ax1.set_xlabel("y₁ [m]")
+        ax1.set_ylabel("y₂ [m]")
+        counts, bins = np.histogram(error_plane, range=(0,error_plane.max()))
+        ax2.stairs(counts, bins, fill=True)
         #plt.legend("")
         if i != n-1:
             plt.pause(0.01)
         else:
-            plt.pause(5)
+            plt.pause(3600)
         model.load_state_dict(weights_before) # restore from snapshot
