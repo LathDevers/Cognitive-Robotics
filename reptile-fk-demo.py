@@ -50,7 +50,7 @@ def gen_task(show = False):
     A = rng.uniform(1, 2)                   # segment A ∈ [1, 2]
     B = rng.uniform(0.5, 1)                 # segment B ∈ [0.5, 1]
     if show:
-        print(A,B)
+        print(f"A: {round(A,3)}m, B: {round(B,3)}m")
     f = lambda x: np.array([
             A * np.cos(x[0]) + B * np.cos(x[0] + x[1]), # y₁ = A⋅cos(x₁) + B⋅cos(x₁ + x₂)
             A * np.sin(x[0]) + B * np.sin(x[0] + x[1]), # y₂ = A⋅sin(x₁) + B⋅sin(x₁ + x₂)
@@ -109,6 +109,10 @@ x_train_plot = np.array([
     x_all[1,rng.choice(x_all.shape[1], size=ntrain)]
 ]) # training points
 
+print(f"SGD steps: {innerEpochs}")
+print(f"Samples: {ntrain}")
+print(f"Grid resolution: {no_of_cells} cells per meter")
+
 # Reptile training loop
 for i in range(n):
     weights_before = deepcopy(model.state_dict())
@@ -141,24 +145,29 @@ for i in range(n):
         ax1.set_aspect('equal')
         f = f_plot
         weights_before = deepcopy(model.state_dict()) # save snapshot before evaluation
-        ax1.pcolor(y1_all, y2_all, error_plane)
-        plt.pause(0.01)
+        #ax1.pcolor(y1_all, y2_all, error_plane)
+        #plt.pause(0.01)
         for j in range(innerEpochs):
             train_on_batch(x_train_plot, f(x_train_plot))
             if (j + 1) % 8 == 0:
                 frac = (j + 1) / innerEpochs
                 update_error_plane()
                 print(f"pred after {j + 1} : {np.average(error_plane, weights=(error_plane >= 0))}")
-                im = ax1.pcolor(y1_all, y2_all, error_plane)
+                #im = ax1.pcolor(y1_all, y2_all, error_plane)
+        im = ax1.pcolor(y1_all, y2_all, error_plane)
         ax1.plot(f(x_train_plot)[0], f(x_train_plot)[1], "x", label="train", color="k")
         fig.colorbar(im, ax=ax1, location='bottom')
         ax1.set_xlabel("y₁ [m]")
         ax1.set_ylabel("y₂ [m]")
+        ax1.set_xticks((-1,0,1,2,3))
         counts, bins = np.histogram(error_plane, range=(0,error_plane.max()))
         ax2.stairs(counts, bins, fill=True)
+        ax2.set_xlim((0,2))
+        ax2.set_ylim((0,150))
+        plt.pause(0.01)
         #plt.legend("")
-        if i != n-1:
-            plt.pause(0.01)
-        else:
-            plt.pause(3600)
+        #if i != n-1:
+        #    plt.pause(0.01)
+        #else:
+        #    plt.pause(3600)
         model.load_state_dict(weights_before) # restore from snapshot
