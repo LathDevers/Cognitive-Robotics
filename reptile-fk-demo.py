@@ -7,14 +7,14 @@ from copy import deepcopy
 
 seed = 0
 innerStepSize = 0.02
-innerEpochs = 32 # 64
+innerEpochs = 64 #!
 outerStepSize0 = 0.1
 n = 30000
 
 rng = np.random.RandomState() #seed)
 #torch.manual_seed(seed)
 
-no_of_cells = 10 # 10
+no_of_cells = 10 #!
 # joint angles x₁ ∈ [−π/2, π/2] and x₂ ∈ [−π/2, π/2]
 x_all = np.array([
     np.linspace(-np.pi/2, np.pi/2, no_of_cells*5)[:,None],
@@ -32,7 +32,7 @@ y1_all = np.linspace(y1_min, y1_max, y1_all_size)
 y2_all = np.linspace(y2_min, y2_max, y2_all_size)
 error_plane = np.zeros((y2_all_size,y1_all_size)) - .1
 #
-ntrain = 100 # Size of training minibatches
+ntrain = 100 # Size of training minibatches #!
 
 # Define model. Reptile paper uses ReLU, but Tanh gives slightly better results
 model = nn.Sequential(
@@ -138,7 +138,7 @@ for i in range(n):
     # Plot the results on a particular task and minibatch
     if (i==0 or (i+1) % 10000 == 0 or i==n-1):
     #if i==n-1:
-        print(f"-------------------------")
+        print(f"{i + 1}-------------------------")
         plt.cla()
         plt.close()
         fig, (ax1, ax2) = plt.subplots(1, 2)
