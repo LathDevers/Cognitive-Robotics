@@ -10,10 +10,9 @@ This repository contains data for **Miniproject 10: Meta-Learning with Reptile**
 4. visualize in each case the results before and after training and compare the outcomes of (i) and (ii) above
 5. finally, replace the sine function by the forward kinematics of a two-link robot arm with segment lengths $A ∈ [1, 2]$ and $B ∈ [0.5, 1]$, and joint angles $x_1, x_2 ∈ [−\frac{π}{2}, \frac{π}{2}]$, end effector coordinates $(y_1, y_2)$ (and no phase):
 
-    $$
-    y_1 = A\cdot\cos(x_1) + B\cdot\cos(x_1 + x_2)\\
-    y_2 = A\cdot\sin(x_1) + B\cdot\sin(x_1 + x_2)
-    $$
+    $y_1 = A\cdot\cos(x_1) + B\cdot\cos(x_1 + x_2)$\
+    $y_2 = A\cdot\sin(x_1) + B\cdot\sin(x_1 + x_2)$
+    
     (this requires to use a network that can transform a pair $(x_1, x_2)$ of joint angles to a pair of end effector coordinates $(y_1, y_2)$. E.g. experiment with a 2-64-64-2-shaped network and again use 10 randomly sampled training points)
 1. repeat the above experiments for this case, now visualizing the error as an error surface above the $y_1, y_2$ space (e.g., visualizing error as color)
 2. create an interactive result report about your exploration results on the Reptile algorithm
